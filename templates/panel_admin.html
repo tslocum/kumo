@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block page %}{% if not administrator %}
+  This area is restricted{% else %}
+    <div style="text-align: center;">
+      <h2>
+        Management Panel<br>
+        <a href="/admin/clearcache">Clear Page Cache</a> | 
+        <a href="/admin/statistics">Statistics</a> | 
+        <a href="{{ account_url}}">{{ account_url_linktext }}</a>
+      </h2>
+    </div><br>
+    {{ page_text }}
+    <hr>{% endif %}{% endblock %}

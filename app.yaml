@@ -1,0 +1,25 @@
+application: pyib
+version: 1
+runtime: python
+api_version: 1
+
+default_expiration: 7d
+
+handlers:
+- url: /static/(.*\.(css|js|jpg|png|gif|exe))
+  static_files: static/\1
+  upload: static/(.*\.(css|js|jpg|png|gif|exe))
+  
+- url: /robots.txt
+  static_files: static/robots.txt
+  upload: static/robots.txt
+  
+- url: /favicon.ico
+  static_files: static/images/favicon.ico
+  upload: static/images/favicon.ico
+
+- url: /.*
+  script: pyib.py
+  
+- url: /res/.*
+  script: pyib.py
