@@ -48,10 +48,11 @@ import crypt
 from crypt import crypt
 
 from google.appengine.api import users
+from google.appengine.api import urlfetch
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext import db
-from google.appengine.api import urlfetch
+from google.appengine.ext import search
 
 from time import strftime
 from datetime import datetime
@@ -96,7 +97,7 @@ class Image(db.Model):
   thumb_catalog_data = db.BlobProperty()
   attachedpost = db.StringProperty()
 
-class Post(db.Model):
+class Post(search.SearchableModel):
   postid = db.IntegerProperty() # Consecutive ID
   parentid = db.IntegerProperty() # Parent of post, <None> if this post has no parent
   author = db.UserProperty() # Google account used when making the post
@@ -194,7 +195,7 @@ class BaseRequestHandler(webapp.RequestHandler):
     
     directory = os.path.dirname(__file__)
     path = os.path.join(directory, os.path.join('templates', template_name))
-
+    
     if doreturn:
       return template.render(path, values, debug=_DEBUG)
     else:
@@ -325,6 +326,40 @@ class Panel(BaseRequestHandler):
     
     self.generate('panel.html', template_values)
 
+class Search(BaseRequestHandler):
+  def get(self):
+    results = None
+    numresults = None
+    query = self.request.get('query', '')
+    
+    if query != '':
+      results = Post.all().search(query)
+      if results:
+        numresults = results.count()
+        if numresults == 0:
+          numresults = None
+                                 
+    template_values = {
+      'query': query,
+      'results': results,
+      'numresults': numresults,
+    }
+    
+    self.generate('search.html', template_values)    
+
+class Sitemap(BaseRequestHandler):
+  def get(self):
+    urls = []
+    
+    posts = Post.all().filter('parentid = ', None).order('-bumped')
+                                 
+    template_values = {
+      'posts': posts,
+    }
+
+    self.response.headers['Content-Type'] = 'text/xml'
+    self.generate('sitemap.xml', template_values)
+    
 class Board(BaseRequestHandler):
   def post(self):
     parent_post = None
@@ -347,7 +382,7 @@ class Board(BaseRequestHandler):
         
     if parent_post:
        post = Post(parent=parent_post)
-       post.parentid = parent_post.key().id()
+       post.parentid = parent_post.postid
        post.posts = None
     else:
        post = Post()
@@ -834,6 +869,11 @@ def recachepage(self, page_name, pagenum=0):
       raise
     page_contents = writepage(self, threads, None, True, True, pagenum)
   else:
+    post = Post.get(page_name)
+    if post:
+      if post.parentid is not None:
+        return self.error('Error: Invalid thread ID.')
+    
     page = Page.all().filter('identifier = ', page_name).get()
     if not page:
       page = Page(identifier=page_name)
@@ -1064,7 +1104,7 @@ def checkImageNotDuplicate(image):
   post = Post.all().filter('image_hex = ', image_hex).get()
   if post:
     if post.parentid:
-      return False, Post.get_by_id(int(post.parentid)).key(), post.postid
+      return False, post.parent().key(), post.postid
     else:
       return False, post.key(), post.postid
   else:
@@ -1237,6 +1277,8 @@ def real_main():
                                         ('/delete', Delete),
                                         ('/catalog.html', Catalog),
                                         ('/panel', Panel),
+                                        ('/search', Search),
+                                        ('/sitemap.xml', Sitemap),
                                         (r'/admin/(.*)/(.*)', AdminPage),
                                         (r'/admin/(.*)', AdminPage),
                                         ('/admin', AdminPage)],

@@ -14,6 +14,10 @@ handlers:
   static_files: static/robots.txt
   upload: static/robots.txt
   
+- url: /google9f303401127f9bab.html
+  static_files: static/robots.txt
+  upload: static/robots.txt
+  
 - url: /favicon.ico
   static_files: static/images/favicon.ico
   upload: static/images/favicon.ico
