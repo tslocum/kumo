@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>http://pyib.appspot.com/</loc>
+    <lastmod>{% now "Y-m-d" %}</lastmod>
+    <changefreq>hourly</changefreq>
+  </url>{% for post in posts %}
+  <url>
+    <loc>http://pyib.appspot.com/res/{{ post.postid }}.html</loc>
+    <lastmod>{{ post.bumped|date:"Y-m-d" }}</lastmod>
+    <changefreq>hourly</changefreq>
+  </url>{% endfor %}
+</urlset>
