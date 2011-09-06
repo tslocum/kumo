@@ -52,6 +52,7 @@ from google.appengine.api import users
 from google.appengine.api import urlfetch
 from google.appengine.api import images
 from google.appengine.ext import webapp
+from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
 from google.appengine.ext import db
 from google.appengine.ext import search
@@ -415,11 +416,11 @@ class Board(BaseRequestHandler):
     else:
       post.anonymous = False
 
-    thefile = self.request.params.get('file', None)
+    thefile = self.request.get('file', None)
 
     image_data = None
     if thefile is not None:
-      image_data = db.Blob(thefile.value)
+      image_data = db.Blob(str(thefile))
       
     if image_data:
       image = Image(data=image_data)
@@ -433,7 +434,7 @@ class Board(BaseRequestHandler):
         if imageinfo[1] > 0 and imageinfo[2] > 0:
           is_not_duplicate = checkImageNotDuplicate(image_data)
           if is_not_duplicate[0]:
-            post.image_original = cgi.escape(thefile.filename).strip()
+            post.image_original = cgi.escape(self.request.params.get('file').filename).strip()
             post.image_mime = imageinfo[0]
             
             post.image_size = len(image_data)
@@ -771,7 +772,7 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
   if reply_to is None:
     pages_text = pages_text + '<td>'
 
-    pages = math.ceil(float(total_threads) / 10)
+    pages = int(math.ceil(float(total_threads) / 10))
     
     if pagenum == 0:
       pages_text = pages_text + 'Previous'
@@ -1251,7 +1252,7 @@ def real_main():
                                         (r'/admin/(.*)', AdminPage),
                                         ('/admin', AdminPage)],
                                         debug=_DEBUG)
-  wsgiref.handlers.CGIHandler().run(application)
+  run_wsgi_app(application)
 
 def profile_main():
   import cProfile, pstats
