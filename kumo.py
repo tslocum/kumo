@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Created because I like PHP too much, and need
-# a breath of fresh air from another programming
-# language.
+# kumo
+# an imageboard for Google App Engine
 #
 # tslocum@gmail.com
-# http://www.tj9991.com
-# http://www.kusaba.org
+# https://github.com/tslocum/kumo
 
 __author__ = 'Trevor Slocum'
 __license__ = 'GNU GPL v3'
@@ -44,11 +42,15 @@ import math
 import urllib
 import logging
 
+# Set to true if we want to have our webapp print stack traces, etc
+_DEBUG = False
+
 import crypt
 from crypt import crypt
 
 from google.appengine.api import users
 from google.appengine.api import urlfetch
+from google.appengine.api import images
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext import db
@@ -60,12 +62,10 @@ from hashlib import md5
 from hashlib import sha224
 from StringIO import StringIO
 
-# Set to true if we want to have our webapp print stack traces, etc
-_DEBUG = False
 
 # Wishful thinking
-gettext.bindtextdomain('pyib')
-gettext.textdomain('pyib')
+gettext.bindtextdomain('kumo')
+gettext.textdomain('kumo')
 _ = gettext.gettext
 
 # If this is set to True, special administrator commands will be visible, and pages will not be retrieved from/stored in the cache
@@ -184,8 +184,8 @@ class BaseRequestHandler(webapp.RequestHandler):
       'loggedin': loggedin,
       'administrator': users.is_current_user_admin(),
       'administratorview': _ADMINISTRATOR_VIEW,
-      'title': 'PyIB',
-      'application_name': 'PyIB',
+      'title': 'kumo',
+      'application_name': 'kumo',
       'is_page': 'false',
       'MAX_FILE_SIZE': MAX_IMAGE_SIZE_BYTES,
       'maxsize_display': MAX_IMAGE_SIZE_DISPLAY,
@@ -403,10 +403,10 @@ class Board(BaseRequestHandler):
 
     # Set cookies for auto-fill
     cookie = Cookie.SimpleCookie(self.request.headers.get('Cookie'))
-    cookie['pyib_name'] = self.request.get('name')
+    cookie['kumo_name'] = self.request.get('name')
     if post.email.lower() != 'sage' and post.email.lower() != 'age':
-      cookie['pyib_email'] = post.email
-    cookie['pyib_password'] = post.password
+      cookie['kumo_email'] = post.email
+    cookie['kumo_password'] = post.password
     self.response.headers['Set-cookie'] = str(cookie)
     
     post.ip = str(self.request.remote_addr)
@@ -419,10 +419,7 @@ class Board(BaseRequestHandler):
 
     image_data = None
     if thefile is not None:
-      try:
-        image_data = db.Blob(thefile.value)
-      except:
-        pass
+      image_data = db.Blob(thefile.value)
       
     if image_data:
       image = Image(data=image_data)
@@ -520,12 +517,16 @@ class Board(BaseRequestHandler):
       post.message = post.message.replace("\n", '<br>')
 
       if post.image:
-        queueThumbnails(post, image_data)
+        image.thumb_data = images.resize(image_data, post.thumb_width, post.thumb_height)
+        image.thumb_catalog_data = images.resize(image_data, post.thumb_catalog_width, post.thumb_catalog_height)
+        post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
+        post.thumb_filename = post.image_filename + 's' + post.image_extension
 
       post.put()
       if post.image:
         image.attachedpost = str(post.key())
         image.put()
+        post.put()
     except:
       if post.image:
         image.delete()
@@ -646,7 +647,7 @@ class AdminPage(BaseRequestHandler):
         page_text += 'Page cache cleared: ' + str(i) + ' pages deleted'
     
     template_values = {
-      'title': 'PyIB Management Panel',
+      'title': 'kumo management panel',
       'page_text': page_text,
       'administrator': users.is_current_user_admin(),
     }
@@ -1066,39 +1067,6 @@ def checkAllowedHTML(message):
   
   return message
 
-def queueThumbnails(post, image_data):
-  post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
-  if post.image_extension == '.gif':
-    post.thumb_filename = post.image_filename + 's.gif'
-  else:
-    # PNGs and JPGs are both thumbnailed as JPG files
-    post.thumb_filename = post.image_filename + 's.jpg'
-  post.image_filename = post.image_filename + post.image_extension
-  
-  queueThumbnailDaemon(False, post.image, image_data, post.thumb_width, post.thumb_height, post.image_filename)
-  queueThumbnailDaemon(True, post.image, image_data, post.thumb_catalog_width, post.thumb_catalog_height, post.image_filename)
-  
-def queueThumbnailDaemon(catalog, image_key, image_data, thumb_width, thumb_height, filename):
-  if catalog:
-    callback = 'http://pyib.appspot.com/finish_c'
-  else:
-    callback = 'http://pyib.appspot.com/finish'
-    
-  query = urllib.urlencode({
-      'id':       image_key,
-      'size':     str(thumb_width) + 'x' + str(thumb_height),
-      'action':   'avatar',
-      'quality':  '85',
-      'callback': callback,
-      'file_name': filename,
-  })
-  try:
-    resp = urlfetch.fetch('http://resizer.movq.net/resizer/resize?%s' % query, payload=image_data, method=urlfetch.POST, headers={}, allow_truncated=False)
-    if resp.status_code != 200:
-      logging.error("failed to schedule image resize for img %s, code=%i msg=%.60r" % (image_key, resp.status_code, resp.content) )
-  except urlfetch.DownloadError:
-      logging.error("failed to schedule image resize for img %s" % (image_key) )
-  
 def checkImageNotDuplicate(image):
   image_hex = sha224(image).hexdigest()
   post = Post.all().filter('image_hex = ', image_hex).get()

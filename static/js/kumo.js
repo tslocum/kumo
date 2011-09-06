@@ -253,9 +253,9 @@ function anonymouscheckbox(checkbox) {
 function set_inputs(id) {
 	if (document.getElementById(id)) {
 		with(document.getElementById(id)) {
-			if(!name.value) name.value = getCookie("pyib_name");
-			if(!email.value) email.value = getCookie("pyib_email");
-			if(!password.value) password.value = get_password("pyib_password");
+			if(!name.value) name.value = getCookie("kumo_name");
+			if(!email.value) email.value = getCookie("kumo_email");
+			if(!password.value) password.value = get_password("kumo_password");
 		}
 	}
 }
@@ -263,7 +263,7 @@ function set_inputs(id) {
 function set_delpass(id) {
 	if (document.getElementById(id).password) {
 		with(document.getElementById(id)) {
-			if(!password.value) password.value = get_password("pyib_password");
+			if(!password.value) password.value = get_password("kumo_password");
 		}
 	}
 }

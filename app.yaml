@@ -23,7 +23,7 @@ handlers:
   upload: static/images/favicon.ico
 
 - url: /.*
-  script: pyib.py
+  script: kumo.py
   
-- url: /res/.*
-  script: pyib.py
+- url: /kumo/.*
+  script: kumo.py
