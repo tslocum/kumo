@@ -1,9 +1,14 @@
-application: pyib
+application: kumoboard
 version: 1
-runtime: python
+runtime: python27
 api_version: 1
 
 default_expiration: 7d
+threadsafe: true
+
+libraries:
+- name: jinja2
+  version: latest
 
 handlers:
 - url: /static/(.*\.(css|js|jpg|png|gif|exe))
@@ -23,10 +28,10 @@ handlers:
   upload: static/images/favicon.ico
 
 - url: /stats.*
-  script: $PYTHON_LIB/google/appengine/ext/appstats/ui.py
+  script: google.appengine.ext.appstats.ui.app
 
 - url: /.*
-  script: kumo.py
+  script: kumo.app
   
 - url: /kumo/.*
-  script: kumo.py
+  script: kumo.app

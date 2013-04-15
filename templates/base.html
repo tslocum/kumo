@@ -13,7 +13,7 @@
   </head>
   <body>
     <div class="adminbar">
-      [<a href="#" onclick="javascript:set_stylesheet('Futaba');return false;">Futaba</a>] [<a href="#" onclick="javascript:set_stylesheet('Burichan');return false;">Burichan</a>] - [<a href="/{% if administratorview %}?admin{% endif %}">Home</a>] [<a href="/panel">Account</a>]{% if administratorview %} [<a href="/admin">Manage</a>]{% endif %}
+      [<a href="#" onclick="javascript:set_stylesheet('Futaba');return false;">Futaba</a>] [<a href="#" onclick="javascript:set_stylesheet('Burichan');return false;">Burichan</a>] - [<a href="/{% if administratorview %}?admin=view{% endif %}">Home</a>] [<a href="/panel">Account</a>]{% if administrator %} [<a href="/admin">Manage</a>]{% endif %}
     </div>
     <div class="logo">
       <a href="/"><img src="/static/images/kumo_logo.png" border="0" width="240" height="120" alt="Logo"></a><br>
@@ -37,8 +37,8 @@
     <div class="footer" style="clear: both;">
       - <a href="http://www.2chan.net">futaba</a> + <a href="http://www.1chan.net">futallaby</a> + <a href="https://github.com/tslocum/kumo">kumo</a> -{% if administratorview %}<br>
       - Administrator View -{% else %}{% if cached %}<br>
-      - Cached {{ cached }} -{% else %}{% if execution_time_seconds %}<br>
-      - Took {{ execution_time_seconds }}.{{ execution_time_microseconds }} seconds -{% endif %}{% endif %}{% endif %}
+      Cached {{ cached }}{% else %}{% if execution_time_seconds %}<br>
+      Took {{ execution_time_seconds }}.{{ execution_time_microseconds }} seconds{% endif %}{% endif %}{% endif %}
     </div>
     <script type="text/javascript">
     var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");

@@ -3,7 +3,7 @@
     <table border="1" align="center">{% for row in rows %}
       <tr>{% for post in row %}
         <td valign="middle">
-          <a href="/res/{{ post.postid }}.html" title="{{ post.subject }}"><img src="/cat/{{ post.key }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" border="0" width="{{ post.thumb_catalog_width }}" height="{{ post.thumb_catalog_height }}"></a><br>
+          <a href="/res/{{ post.postid }}.html" title="{{ post.subject }}"><img src="/cat/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" border="0" width="{{ post.thumb_catalog_width }}" height="{{ post.thumb_catalog_height }}"></a><br>
           <small>{{ post.posts }}</small>
         </td>{% endfor %}
       </tr>{% endfor %}

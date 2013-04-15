@@ -4,7 +4,7 @@
       background-color: #ffefef !important;
     }
     </style>{% endif %}{% if replythread %}
-    &#91;<a href="/{% if administratorview %}?admin{% endif %}">Return</a>&#93;<div class="replymode">Posting mode: Reply</div>{% endif %}
+    &#91;<a href="/{% if administratorview %}?admin=view{% endif %}">Return</a>&#93;<div class="replymode">Posting mode: Reply</div>{% endif %}
     <div class="postarea">
       <form name="postform" id="postform" action="/post" method="post" enctype="multipart/form-data">{% if replythread %}
       <input type="hidden" name="parent" value="{{ replythread }}">{% endif %}
@@ -48,7 +48,7 @@
           </tr>
           <tr>
             <td class="postblock">
-              File<a href="?admin" style="text-decoration: none;" accesskey="x">&nbsp;</a>
+              File<a href="?admin=view" style="text-decoration: none;" accesskey="x">&nbsp;</a>
             </td>
             <td>
               <input type="file" name="file" size="35" accesskey="f">
@@ -89,20 +89,20 @@
       &gt;&gt;
     </td>
     <td class="reply" id="reply{{ post.postid }}">{% else %}{% if post.image %}
-    <span class="filesize">File: <a href="/src/{{ post.key }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key }}/{{ post.image_filename }}', '/thumb/{{ post.key }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
+    <span class="filesize">File: <a href="/src/{{ post.key() }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key() }}/{{ post.image_filename }}', '/thumb/{{ post.key() }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
     <br>
-    <a target="_blank" href="/src/{{ post.key }}/{{ post.image_filename }}">
-      <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
+    <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
+      <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
     </a>{% endif %}{% endif %}{% if post.deleted %}
     <span class="omittedposts">No. {{ post.postid }} has been deleted.</span>{% else %}
     <a name="{{ post.postid }}"></a>
-    <a name="{{ post.key }}"></a>
+    <a name="{{ post.key() }}"></a>
     <label>
-      <input type="checkbox" name="delete" value="{{ post.key }}">{% if post.subject %}
+      <input type="checkbox" name="delete" value="{{ post.key() }}">{% if post.subject %}
       <span class="filetitle">
       {{ post.subject }}
       </span>{% endif %}
-      {{ post.nameblock }}
+      {{ post.nameblock|safe }}
       {{ post.date_formatted }}
     </label>
     <span class="reflink">
@@ -110,13 +110,13 @@
       {% if replythread %}<a href="#i{{ post.postid }}" onclick="insert('>>{{ post.postid }}');">{% else %}<a href="/res/{{ thread.op_postid }}.html#i{{ post.postid }}">{% endif %}{{ post.postid }}</a>
     </span>{% if post.parentid %}{% if post.image %}
     <br>
-    <span class="filesize">File: <a href="/src/{{ post.key }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key }}/{{ post.image_filename }}', '/thumb/{{ post.key }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
+    <span class="filesize">File: <a href="/src/{{ post.key() }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key }}/{{ post.image_filename }}', '/thumb/{{ post.key }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
     <br>
-    <a target="_blank" href="/src/{{ post.key }}/{{ post.image_filename }}">
-      <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
+    <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
+      <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
     </a>{% endif %}{% else %}{% if not replythread %}
-    &nbsp;[<a href="/res/{{ thread.op_postid }}.html{% if administratorview %}?admin{% endif %}">Reply</a>]{% endif %}{% endif %}{% if administratorview %}
-     [<a href="/admin/delete/{{ post.key }}">D</a> <a href="/admin/ban/{{ post.key }}">B</a>]{% endif %}
+    &nbsp;[<a href="/res/{{ thread.op_postid }}.html{% if administratorview %}?admin=view{% endif %}">Reply</a>]{% endif %}{% endif %}{% if administratorview %}
+     [<a href="/admin/delete/{{ post.key() }}">D</a> <a href="/admin/ban/{{ post.key() }}">B</a>]{% endif %}
     <blockquote>
     {{ post.message }}
     </blockquote>{% endif %}{% if not post.parentid %}{% if not replythread %}{% if thread.replieshidden %}
@@ -145,7 +145,7 @@
     <table border="1">
       <tbody>
         <tr>
-          {{ pages }}
+          {{ pages|safe }}
         </tr>
       </tbody>
     </table>{% endif %}{% endblock %}

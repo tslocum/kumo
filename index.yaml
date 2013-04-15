@@ -10,25 +10,21 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
-# Used 3 times in query history.
 - kind: Post
   properties:
   - name: ip
   - name: date
     direction: desc
 
-# Used 3 times in query history.
 - kind: Post
   properties:
   - name: parentid
   - name: bumped
     direction: desc
 
-# Used once in query history.
 - kind: Post
   ancestor: yes
 
-# Used once in query history.
 - kind: Post
   ancestor: yes
   properties:

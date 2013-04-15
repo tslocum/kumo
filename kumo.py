@@ -29,7 +29,7 @@ import StringIO
 import sys
 import string
 import cgi
-import wsgiref.handlers
+#import wsgiref.handlers
 import Cookie
 import os
 import time
@@ -51,9 +51,8 @@ from crypt import crypt
 from google.appengine.api import users
 from google.appengine.api import urlfetch
 from google.appengine.api import images
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.ext.webapp import template
+import webapp2
+import jinja2
 from google.appengine.ext import db
 from google.appengine.ext import search
 
@@ -69,8 +68,17 @@ gettext.bindtextdomain('kumo')
 gettext.textdomain('kumo')
 _ = gettext.gettext
 
-# If this is set to True, special administrator commands will be visible, and pages will not be retrieved from/stored in the cache
-_ADMINISTRATOR_VIEW = False
+# Initialize jinja2 environment
+jinja_environment = jinja2.Environment(autoescape=True, loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
+
+def kumo_date(value, format='%H:%M / %d-%m-%Y'):
+    return value.strftime(format)
+jinja_environment.filters['date'] = kumo_date
+
+def kumo_pluralize(cnt):
+    if cnt != 1:
+        return 's'
+jinja_environment.filters['pluralize'] = kumo_pluralize
 
 # Begin Datastore models
 
@@ -152,7 +160,7 @@ class Thread():
   op_key = None
   posts_in_thread = 0
 
-class BaseRequestHandler(webapp.RequestHandler):
+class BaseRequestHandler(webapp2.RequestHandler):
   """Supplies a common template generation function.
 
   When you call generate(), we augment the template variables supplied with
@@ -160,8 +168,6 @@ class BaseRequestHandler(webapp.RequestHandler):
   in the 'request' variable.
   """
   def generate(self, template_name, template_values={}, doreturn=False):
-    global _ADMINISTRATOR_VIEW
-    
     account_greeting = ''
     loggedin = False
     
@@ -184,7 +190,7 @@ class BaseRequestHandler(webapp.RequestHandler):
       'account_url_linktext': url_linktext,
       'loggedin': loggedin,
       'administrator': users.is_current_user_admin(),
-      'administratorview': _ADMINISTRATOR_VIEW,
+      'administratorview': isAdminView(self),
       'title': 'kumo',
       'application_name': 'kumo',
       'is_page': 'false',
@@ -197,16 +203,24 @@ class BaseRequestHandler(webapp.RequestHandler):
     directory = os.path.dirname(__file__)
     path = os.path.join(directory, os.path.join('templates', template_name))
     
+    output = jinja_environment.get_template(template_name).render(values, debug=_DEBUG).encode('utf-8')
     if doreturn:
-      return template.render(path, values, debug=_DEBUG)
+      return output
     else:
-      self.response.out.write(template.render(path, values, debug=_DEBUG))
+      self.response.out.write(output)
 
   """Simple self.redirect() replacement.  Using the command provided in the SDK yields ugly refreshes."""
   def redirect_meta(self, destination):
     self.response.out.write('<meta http-equiv="refresh" content="0;url=' + destination + '">--&gt; --&gt; --&gt;')
   
-  def error(self, error):
+  def error(self, error, is_exception=False):
+    global _DEBUG
+    if _DEBUG:
+        import traceback
+        if is_exception:
+            traceback.print_exc()
+        else:
+            traceback.print_stack()
     template_values = {
       'error': error,
       }
@@ -267,7 +281,7 @@ class MainPage(BaseRequestHandler):
       try:
         fetchpage(self, 'front', pagenum)
       except:
-        return self.error('Error: Application quota exceeded.  Please wait a moment and try again.')
+        return self.error('Error: Application quota exceeded.  Please wait a moment and try again.', True)
     else:
       return self.error('Invalid page number.')
 
@@ -318,9 +332,8 @@ class Panel(BaseRequestHandler):
     template_values = {}
     
     if users.get_current_user():
-      current_user = users.get_current_user()
-      user_prefs = UserPrefs().all().filter('user = ', current_user)
-      user_prefs = user_prefs.get()
+      user_prefs = getUserPrefs(self)
+          
       template_values = {
         'user_prefs': user_prefs,
       }
@@ -355,6 +368,7 @@ class Sitemap(BaseRequestHandler):
     posts = Post.all().filter('parentid = ', None).order('-bumped')
                                  
     template_values = {
+      'now': datetime.now(),
       'posts': posts,
     }
 
@@ -404,10 +418,10 @@ class Board(BaseRequestHandler):
 
     # Set cookies for auto-fill
     cookie = Cookie.SimpleCookie(self.request.headers.get('Cookie'))
-    cookie['kumo_name'] = self.request.get('name')
+    cookie['kumo_name'] = self.request.get('name').encode('utf-8')
     if post.email.lower() != 'sage' and post.email.lower() != 'age':
-      cookie['kumo_email'] = post.email
-    cookie['kumo_password'] = post.password
+      cookie['kumo_email'] = post.email.encode('utf-8')
+    cookie['kumo_password'] = post.password.encode('utf-8')
     self.response.headers['Set-cookie'] = str(cookie)
     
     post.ip = str(self.request.remote_addr)
@@ -427,7 +441,7 @@ class Board(BaseRequestHandler):
       try:
         image.put()
       except:
-        return self.error('Error: That file is too large.')
+        return self.error('Error: That file is too large.', True)
       post.image = str(image.key())
       imageinfo = getImageInfo(image_data)
       if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
@@ -476,10 +490,7 @@ class Board(BaseRequestHandler):
       
     if users.get_current_user():
       current_user = users.get_current_user()
-      user_prefs = UserPrefs().all().filter('user = ', current_user)
-      user_prefs = user_prefs.get()
-      if not user_prefs:
-        user_prefs = UserPrefs(user=current_user)
+      user_prefs = getUserPrefs(self)
       
       post.author = current_user
       post.name = ''
@@ -509,6 +520,9 @@ class Board(BaseRequestHandler):
     
     try:
       post.postid = Counter('Post_ID').inc()
+      if post.postid == 0:
+        Counter('Post_ID').create(0)
+        return self.error('Database initialized.  Please re-submit your post.', True)
       if parent_post:
         post.message = checkRefLinks(post.message, parent_post.postid)
       else:
@@ -531,7 +545,7 @@ class Board(BaseRequestHandler):
     except:
       if post.image:
         image.delete()
-      return self.error('Error: Unable to store post in datastore.')
+      return self.error('Error: Unable to store post in datastore.', True)
 
     if users.get_current_user():
       user_prefs.posts += 1
@@ -610,13 +624,10 @@ class Delete(BaseRequestHandler):
     
 class AdminPage(BaseRequestHandler):
   def get(self,arg1=None,arg2=None,arg3=None):
-    global _ADMINISTRATOR_VIEW
     page_text = ''
     
     if not users.is_current_user_admin():
       return self.error('You are not authorized to view this page.')
-
-    _ADMINISTRATOR_VIEW = True
     
     if arg1:
       if arg1 == 'delete':
@@ -654,6 +665,14 @@ class AdminPage(BaseRequestHandler):
     }
     
     self.generate('panel_admin.html', template_values)
+    
+def getUserPrefs(self):
+    current_user = users.get_current_user()
+    user_prefs = UserPrefs().all().filter('user = ', current_user)
+    user_prefs = user_prefs.get()
+    if not user_prefs:
+      user_prefs = UserPrefs(user=current_user)
+    return user_prefs
 
 def getposts(self, thread_op=None,startat=0,special=None):
   global total_threads
@@ -786,19 +805,22 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
 
     pages_text += '</td><td>'
 
-    for i in xrange(0, pages):
-      if i == pagenum:
-        pages_text = pages_text + '[' + str(i) + '] '
-      else:
-        if i == 0:
-          pages_text = pages_text + '[<a href="/">' + str(i) + '</a>] '
-        else:
-          pages_text = pages_text + '[<a href="/' + str(i) + '.html">' + str(i) + '</a>] '
+    if pages == 0:
+        pages_text = pages_text + '[0] '
+    else:
+        for i in xrange(0, pages):
+          if i == pagenum:
+            pages_text = pages_text + '[' + str(i) + '] '
+          else:
+            if i == 0:
+              pages_text = pages_text + '[<a href="/">' + str(i) + '</a>] '
+            else:
+              pages_text = pages_text + '[<a href="/' + str(i) + '.html">' + str(i) + '</a>] '
         
     pages_text = pages_text + '</td><td>'
 
     next = (pagenum + 1)
-    if next == 10 or next == pages:
+    if next == 10 or next == pages or pages == 0:
       pages_text = pages_text + 'Next</td>'
     else:
       pages_text = pages_text + '<form method="get" action="/' + str(next) + '.html"><input value="Next" type="submit"></form></td>'
@@ -822,41 +844,33 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
   
   return self.generate('index.html', template_values, doreturn)
 
-def fetchpage(self, page_name, pagenum=0):
-  global _ADMINISTRATOR_VIEW
-  
-  # If ?admin is in the URL, and the current user is an administrator, don't give them a cached page
-  if users.is_current_user_admin() and self.request.get('admin', None) is not None:
-    _ADMINISTRATOR_VIEW = True
-    
+def fetchpage(self, page_name, pagenum=0):    
   if page_name == 'front':
     if pagenum > 0:
       page_name += str(pagenum)
 
     page = Page.all().filter('identifier = ', page_name).get()
       
-    if page and not _ADMINISTRATOR_VIEW:
+    if page and not isAdminView(self):
       page_contents = page.contents
     else:
       try:
         page_contents = recachepage(self, 'front', pagenum)
       except:
-        return self.error('Invalid thread ID supplied.')
+        return self.error('Invalid thread ID supplied.', True)
   else:
     page = Page.all().filter('identifier = ', page_name).get()
-    if page and not _ADMINISTRATOR_VIEW:
+    if page and not isAdminView(self):
       page_contents = page.contents
     else:
       try:
         page_contents = recachepage(self, page_name)
       except:
-        return self.error('Invalid thread ID supplied.')
+        return self.error('Invalid thread ID supplied.', True)
 
   self.response.out.write(page_contents)
 
 def recachepage(self, page_name, pagenum=0):
-  global _ADMINISTRATOR_VIEW
-  
   if page_name == 'front':
     if pagenum > 0:
       page_name += str(pagenum)
@@ -883,7 +897,7 @@ def recachepage(self, page_name, pagenum=0):
     threads = getposts(self, page_name, 0)
     page_contents = writepage(self, threads, page_name, True, True)
 
-  if not _ADMINISTRATOR_VIEW:
+  if not isAdminView(self):
     page.contents = page_contents
     page.put()
 
@@ -1180,6 +1194,13 @@ def getImageInfo(data):
 
     return content_type, width, height
 
+def isAdminView(self):
+    user = users.get_current_user()
+    if user:
+      if users.is_current_user_admin() and self.request.get('admin', None) == "view":
+        return True
+    return False
+
 # Counter code by vrypan.net
 class Counter():
   """Unique counters for Google Datastore.
@@ -1206,11 +1227,16 @@ class Counter():
       self.__key = C.put()
       self.__status = 1
     else:
+      import traceback
+      traceback.print_stack()
       raise ValueError, 'Counter: '+ self.__name +' already exists'
   
   def get(self):
     self.__check_sanity__()
-    return db.get(self.__key).count
+    try: # When the database is first initalized, this function raises an AttributeError here
+        return db.get(self.__key).count
+    except AttributeError:
+        return 0
   
   def inc(self):
     self.__check_sanity__()
@@ -1225,36 +1251,14 @@ class Counter():
       pass
   
   def __inc1__(self):
-    obj = db.get(self.__key)
-    obj.count += 1
-    obj.put()
+    try: # When the database is first initalized, this function raises an AttributeError here
+        obj = db.get(self.__key)
+        obj.count += 1
+        obj.put()
+    except AttributeError:
+        pass
 
-def real_main():
-  global _DEBUG, time_start
-  time_start = datetime.now()
-  
-  application = webapp.WSGIApplication([('/', MainPage),
-                                        (r'/res/(.*).html/(.*)', ResPage),
-                                        (r'/res/(.*).html', ResPage),
-                                        (r'/cat/(.*)/(.*)', ViewImageThumbCat),
-                                        (r'/thumb/(.*)/(.*)', ViewImageThumb),
-                                        (r'/src/(.*)/(.*)', ViewImage),
-                                        (r'/finish_c', FinishImageCat),
-                                        (r'/finish', FinishImage),
-                                        (r'/([0-9]+).html', MainPage),
-                                        ('/post', Board),
-                                        ('/delete', Delete),
-                                        ('/catalog.html', Catalog),
-                                        ('/panel', Panel),
-                                        ('/search', Search),
-                                        ('/sitemap.xml', Sitemap),
-                                        (r'/admin/(.*)/(.*)', AdminPage),
-                                        (r'/admin/(.*)', AdminPage),
-                                        ('/admin', AdminPage)],
-                                        debug=_DEBUG)
-  run_wsgi_app(application)
-
-def profile_main():
+"""def profile_main():
   import cProfile, pstats
   
   prof = cProfile.Profile()
@@ -1266,7 +1270,26 @@ def profile_main():
   # stats.print_callees()
   # stats.print_callers()
   print "</pre>"
+"""
 
-if __name__ == "__main__":
-  #profile_main()
-  real_main()
+time_start = datetime.now()
+
+app = webapp2.WSGIApplication([('/', MainPage),
+                                      (r'/res/(.*).html/(.*)', ResPage),
+                                      (r'/res/(.*).html', ResPage),
+                                      (r'/cat/(.*)/(.*)', ViewImageThumbCat),
+                                      (r'/thumb/(.*)/(.*)', ViewImageThumb),
+                                      (r'/src/(.*)/(.*)', ViewImage),
+                                      (r'/finish_c', FinishImageCat),
+                                      (r'/finish', FinishImage),
+                                      (r'/([0-9]+).html', MainPage),
+                                      ('/post', Board),
+                                      ('/delete', Delete),
+                                      ('/catalog.html', Catalog),
+                                      ('/panel', Panel),
+                                      ('/search', Search),
+                                      ('/sitemap.xml', Sitemap),
+                                      (r'/admin/(.*)/(.*)', AdminPage),
+                                      (r'/admin/(.*)', AdminPage),
+                                      ('/admin', AdminPage)],
+                                      debug=_DEBUG)
