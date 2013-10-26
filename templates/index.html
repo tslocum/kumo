@@ -118,7 +118,7 @@
     &nbsp;[<a href="/res/{{ thread.op_postid }}.html{% if administratorview %}?admin=view{% endif %}">Reply</a>]{% endif %}{% endif %}{% if administratorview %}
      [<a href="/admin/delete/{{ post.key() }}">D</a> <a href="/admin/ban/{{ post.key() }}">B</a>]{% endif %}
     <blockquote>
-    {{ post.message }}
+    {{ post.message|safe }}
     </blockquote>{% endif %}{% if not post.parentid %}{% if not replythread %}{% if thread.replieshidden %}
     <span class="omittedposts">
       {{ thread.replieshidden }} post{{ thread.replieshidden|pluralize }} omitted.  Click Reply to view.
