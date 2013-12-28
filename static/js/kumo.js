@@ -151,10 +151,10 @@ function highlight(post, checknopage) {
 
 function expandimg(postnum, imgurl, thumburl, imgw, imgh, thumbw, thumbh) {
 	element = document.getElementById("thumb" + postnum);
-	var thumbhtml = '<img src="' + thumburl + '" alt="' + postnum + '" class="thumb" height="' + thumbh + '" width="' + thumbw + '">';
+	var thumbhtml = '<img src="' + thumburl + '" alt="' + postnum + '" class="thumb" width="' + thumbw + '" height="' + thumbh + '">';
 	/* God I hate IE */
 	var thumbhtml_ie = '<img class=thumb height=' + thumbh + ' alt=' + postnum + ' src="' + thumburl + '" width=' + thumbw + '>';
-	if (element.innerHTML.toLowerCase() != thumbhtml && element.innerHTML.toLowerCase() != thumbhtml_ie) {
+	if (element.innerHTML.toLowerCase() != thumbhtml.toLowerCase() && element.innerHTML.toLowerCase() != thumbhtml_ie.toLowerCase()) {
 		element.innerHTML = thumbhtml;
 	} else{
 		element.innerHTML = '<img src="' + imgurl + '" alt="' + postnum + '" class="thumb" height="' + imgh + '" width="' + imgw + '">';

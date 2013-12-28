@@ -110,7 +110,7 @@
       {% if replythread %}<a href="#i{{ post.postid }}" onclick="insert('>>{{ post.postid }}');">{% else %}<a href="/res/{{ thread.op_postid }}.html#i{{ post.postid }}">{% endif %}{{ post.postid }}</a>
     </span>{% if post.parentid %}{% if post.image %}
     <br>
-    <span class="filesize">File: <a href="/src/{{ post.key() }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key }}/{{ post.image_filename }}', '/thumb/{{ post.key }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
+    <span class="filesize">File: <a href="/src/{{ post.key() }}/{{ post.image_filename }}" onclick="javascript:expandimg('{{ post.postid }}', '/src/{{ post.key() }}/{{ post.image_filename }}', '/thumb/{{ post.key() }}/{{ post.thumb_filename }}', '{{ post.image_width }}', '{{ post.image_height }}', '{{ post.thumb_width }}', '{{ post.thumb_height }}');return false;">{{ post.image_filename }}</a> -({{ post.image_size_formatted }}, {{ post.image_width }}x{{ post.image_height }}{% if replythread %}, {{ post.image_original }}{% endif %})</span>
     <br>
     <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
       <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
