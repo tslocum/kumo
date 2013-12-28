@@ -121,7 +121,7 @@
     {{ post.message|safe }}
     </blockquote>{% endif %}{% if not post.parentid %}{% if not replythread %}{% if thread.replieshidden %}
     <span class="omittedposts">
-      {{ thread.replieshidden }} post{{ thread.replieshidden|pluralize }} omitted.  Click Reply to view.
+      {{ thread.replieshidden }} post{{ thread.replieshidden|pluralize }} omitted.  Click <a href="/res/{{ thread.op_postid }}.html{% if administratorview %}?admin=view{% endif %}">Reply</a> to view.
     </span>{% endif %}{% endif %}{% else %}
     </td>
     </tr>
