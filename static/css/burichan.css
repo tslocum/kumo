@@ -194,3 +194,13 @@ a:hover {
 .reflinkpreview {
 	background-color: #D6DAF0 !important;
 }
+
+.spoiler {
+	background: #c4c2ee;
+	color: #c4c2ee;
+}
+
+.spoiler:hover {
+	background: #c4c2ee;
+	color: #000000;
+}
