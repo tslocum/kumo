@@ -13,8 +13,10 @@ __license__ = 'GNU GPL v3'
 MAX_THREADS = 50
 THREADS_SHOWN_ON_FRONT_PAGE = 10
 REPLIES_SHOWN_ON_FRONT_PAGE = 5
-SECONDS_BETWEEN_NEW_THREADS = 30
-SECONDS_BETWEEN_REPLIES = 10
+#SECONDS_BETWEEN_NEW_THREADS = 30
+#SECONDS_BETWEEN_REPLIES = 10
+SECONDS_BETWEEN_NEW_THREADS = 0
+SECONDS_BETWEEN_REPLIES = 0
 
 MAX_IMAGE_SIZE_BYTES = 1048576
 MAX_IMAGE_SIZE_DISPLAY = '1 MB'
@@ -78,7 +80,18 @@ jinja_environment.filters['date'] = kumo_date
 def kumo_pluralize(cnt):
     if cnt != 1:
         return 's'
+    return '' 
 jinja_environment.filters['pluralize'] = kumo_pluralize
+
+marking_rules = (
+  (re.compile('\*\*(?P<bold>.*?)\*\*', re.VERBOSE), r'<b>\g<bold></b>'),
+  (re.compile('__(?P<bold>.*?)__', re.VERBOSE), r'<b>\g<bold></b>'),
+  (re.compile('--(?P<strike>.*?)--', re.VERBOSE), r'<strike>\g<strike></strike>'),
+  (re.compile('%%(?P<spoiler>.*?)%%', re.VERBOSE), r'<span class="spoiler">\g<spoiler></span>'),
+  (re.compile('\*(?P<italic>.*?)\*', re.VERBOSE), r'<i>\g<italic></i>'),
+  (re.compile('_(?P<italic>.*?)_', re.VERBOSE), r'<i>\g<italic></i>'),
+  (re.compile('`(?P<code>.*?)`', re.VERBOSE), r'<code>\g<code></code>'),
+)
 
 # Begin Datastore models
 
@@ -413,7 +426,7 @@ class Board(BaseRequestHandler):
         
     post.email = cgi.escape(self.request.get('email')).strip()
     post.subject = cgi.escape(self.request.get('subject')).strip()
-    post.message = clickableURLs(cgi.escape(self.request.get('message')).strip()[0:1000])
+    post.message = clickableURLs(message_marking(cgi.escape(self.request.get('message'))).strip()[0:20*1024])
     post.password = cgi.escape(self.request.get('password')).strip()
 
     # Set cookies for auto-fill
@@ -935,7 +948,7 @@ def tripcode(pw):
         .replace('>', '&gt;')		\
         .replace(',', ',')
     salt = re.sub(r'[^\.-z]', '.', (pw + 'H..')[1:3])
-    salt = salt.translate(string.maketrans(r':;=?@[\]^_`', 'ABDFGabcdef'))
+    salt = salt.translate(string.maketrans(r":;=?@[\]^_`", "ABDFGabcdef"))
     
     return crypt(pw, salt)[-10:]
 
@@ -1035,6 +1048,14 @@ def checkNotBanned(self, address):
     return False
 
   return True
+
+def message_marking(message):
+  l = []
+  for line in message.split('\n'):
+    for (p, mark_sub) in marking_rules:
+      line = p.sub(mark_sub, line)
+    l.append(line)
+  return '\n'.join(l)
 
 def clickableURLs(message):
   translate_prog = prog = re.compile(r'\b(http|ftp|https)://\S+(\b|/)|\b[-.\w]+@[-.\w]+')
