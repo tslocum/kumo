@@ -145,6 +145,7 @@ class Post(search.SearchableModel):
   email = db.StringProperty()
   subject = db.StringProperty()
   message = db.TextProperty()
+  short_message = db.TextProperty()
   password = db.StringProperty() # Stored as a hash
   date = db.DateTimeProperty(auto_now_add=True) # Datetime of when post was made
   date_formatted = db.StringProperty() # Preprocessed formatting of the datetime
@@ -421,10 +422,23 @@ class Board(BaseRequestHandler):
       if name_match.group(2):
         post.name = name_match.group(1)
         post.tripcode =  tripcode(name_match.group(2))
-        
+
+    msg = cgi.escape(self.request.get('message'))[0:20*1024]
+    paragraphs = msg.split('\n')
+    if len(msg) > 1.5*1024 or len(paragraphs) > 11:
+      short_msg = [paragraphs[0]]
+      c = len(short_msg[0])
+      for i in range(1,len(paragraphs)):
+        c += len(paragraphs[i])
+        if c > 1.5*1024 or len(short_msg) > 11:
+          break
+        short_msg.append(paragraphs[i])
+      if i < len(paragraphs):
+        post.short_message = clickableURLs(message_marking('<br>\n'.join(short_msg)).strip())
+
     post.email = cgi.escape(self.request.get('email')).strip()
     post.subject = cgi.escape(self.request.get('subject')).strip()
-    post.message = clickableURLs(message_marking(cgi.escape(self.request.get('message'))).strip()[0:20*1024])
+    post.message = clickableURLs(message_marking(msg).strip())
     post.password = cgi.escape(self.request.get('password')).strip()
 
     # Set cookies for auto-fill
