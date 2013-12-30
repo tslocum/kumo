@@ -22,6 +22,9 @@ MAX_DIMENSION_FOR_OP_IMAGE = 200
 MAX_DIMENSION_FOR_REPLY_IMAGE = 125
 MAX_DIMENSION_FOR_IMAGE_CATALOG = 50
 
+# Number of posts in a thread after which bumping thread disabled. 0 for disabled this option.
+BUMP_LIMIT = 500
+
 ANONYMOUS = 'Anonymous'
 POST_TRIPCODE_CHARACTER = '!'
 
@@ -580,7 +583,7 @@ class Board(BaseRequestHandler):
     
     if parent_post:
       parent_post.posts += 1
-      if post.email.lower() != 'sage':
+      if post.email.lower() != 'sage' and (BUMP_LIMIT==0 or parent_post.posts<BUMP_LIMIT):
         parent_post.bumped = datetime.now()
       parent_post.put()
       
