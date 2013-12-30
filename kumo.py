@@ -83,7 +83,7 @@ jinja_environment.filters['pluralize'] = kumo_pluralize
 
 marking_rules = (
   (re.compile('\*\*(?P<bold>.*?)\*\*', re.VERBOSE), r'<b>\g<bold></b>'),
-  (re.compile('__(?P<bold>.*?)__', re.VERBOSE), r'<b>\g<bold></b>'),
+  (re.compile('__(?P<underline>.*?)__', re.VERBOSE), r'<span class="underline">\g<underline></span>'),
   (re.compile('--(?P<strike>.*?)--', re.VERBOSE), r'<strike>\g<strike></strike>'),
   (re.compile('%%(?P<spoiler>.*?)%%', re.VERBOSE), r'<span class="spoiler">\g<spoiler></span>'),
   (re.compile('\*(?P<italic>.*?)\*', re.VERBOSE), r'<i>\g<italic></i>'),
@@ -853,10 +853,6 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
   if cached:
     cachedat = datetime.now().strftime("%y/%m/%d %H:%M:%S")
 
-  if reply_to is None:
-    ispage = 'true'
-  else:
-    ispage = 'false'
   template_values = {
     'threads': threads,
     'replythread': reply_to,
@@ -864,8 +860,10 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
     'execution_time_seconds': execution_time.seconds,
     'execution_time_microseconds': (execution_time.microseconds / 1000),
     'cached': cachedat,
-    'is_page': ispage,
+    'is_page': reply_to is None,
     }
+  if not reply_to is None:
+    template_values['op_postid'] = threads[0].op_postid
   
   return self.generate('index.html', template_values, doreturn)
 

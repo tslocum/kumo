@@ -115,6 +115,10 @@ form .trap {
 	background-color: black;
 }
 
+.underline {
+	text-decoration: underline;
+}
+
 .extrabtns {
 	vertical-align: middle;
 }

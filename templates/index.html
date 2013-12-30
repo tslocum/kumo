@@ -33,9 +33,9 @@
             <td class="postblock">
               Subject
             </td>
-            <td>
+            <td>  
               <input type="text" name="subject" size="40" maxlength="75" accesskey="s">
-              <input type="submit" value="Submit" accesskey="z">
+              <input type="submit" value="Submit" accesskey="z">&nbsp;(<span id="posttypeindicator">{% if replythread %}reply to {{ op_postid }}{% else %}new thread{% endif %}</span>)
             </td>
           </tr>
           <tr>
