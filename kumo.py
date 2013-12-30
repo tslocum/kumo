@@ -427,6 +427,7 @@ class Board(BaseRequestHandler):
         post.tripcode =  tripcode(name_match.group(2))
 
     msg = cgi.escape(self.request.get('message'))[0:20*1024]
+    msg = msg.strip()
     paragraphs = msg.split('\n')
     if len(msg) > 1.5*1024 or len(paragraphs) > 11:
       short_msg = [paragraphs[0]]
@@ -437,11 +438,11 @@ class Board(BaseRequestHandler):
           break
         short_msg.append(paragraphs[i])
       if i < len(paragraphs):
-        post.short_message = clickableURLs(message_marking('<br>\n'.join(short_msg)).strip())
+        post.short_message = clickableURLs(message_marking('<br>\n'.join(short_msg)))
 
     post.email = cgi.escape(self.request.get('email')).strip()
     post.subject = cgi.escape(self.request.get('subject')).strip()
-    post.message = clickableURLs(message_marking(msg).strip())
+    post.message = clickableURLs(message_marking(msg))
     post.password = cgi.escape(self.request.get('password')).strip()
 
     # Set cookies for auto-fill
