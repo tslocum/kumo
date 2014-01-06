@@ -135,6 +135,7 @@ class Post(search.SearchableModel):
   image_size_formatted = db.StringProperty() # Formatted version of size (KB)
   image_width = db.IntegerProperty() # Width of image
   image_height = db.IntegerProperty() # Height of image
+  image_deleted = db.BooleanProperty()
   thumb_filename = db.StringProperty() # Full filename of the stored file thumbnail ([timestamp + postid]s.ext)
   thumb_width = db.IntegerProperty() # Width of thumbnail
   thumb_height = db.IntegerProperty() #height of thumbnail
@@ -516,6 +517,7 @@ class Board(BaseRequestHandler):
           return self.error('Error: Unable to read image dimensions.')
       else:
         return self.error('Error:Only GIF, JPG, and PNG files are supported.')
+    post.image_deleted = False
       
     if users.get_current_user():
       current_user = users.get_current_user()
@@ -618,17 +620,13 @@ class Delete(BaseRequestHandler):
             
             if imageonly:
               if post.image:
-                if post.parentid:
-                  image = Image.get(post.image)
-                  if image:
-                    image.delete()
-                  post.image = None
-                  post.image_hex = None
-                  if post.message == '':
-                    post.deleted = True
-                  post.put()
-                else:
-                  return self.error('Images can not be deleted from the first post in threads.')
+                image = Image.get(post.image)
+                if image:
+                  image.delete()
+                post.image = None
+                post.image_hex = None
+                post.image_deleted = True
+                post.put()
               else:
                 return self.error('That post does not have an image attached to it.')
             else:

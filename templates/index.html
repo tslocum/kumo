@@ -94,7 +94,7 @@
     <br>
     <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
       <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
-    </a>{% endif %}{% endif %}{% if post.deleted %}
+    </a>{% else %}{% if post.image_deleted %}<span class="filesize">File: <i>&lt;deleted&gt;</i></span><br><div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% endif %}{% if post.deleted %}
     <span class="omittedposts">No. {{ post.postid }} has been deleted.</span>{% else %}
     <a name="{{ post.postid }}"></a>
     <a name="{{ post.key() }}"></a>
@@ -115,7 +115,7 @@
     <br>
     <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
       <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
-    </a>{% endif %}{% else %}{% if not replythread %}
+    </a>{% else %}{% if post.image_deleted %}<div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% else %}{% if not replythread %}
     &nbsp;[<a href="/res/{{ thread.op_postid }}.html{% if administratorview %}?admin=view{% endif %}">Reply</a>]{% endif %}{% endif %}{% if administratorview %}
      [<a href="/admin/delete/{{ post.key() }}">D</a> <a href="/admin/ban/{{ post.key() }}">B</a>]{% endif %}
     <blockquote>
