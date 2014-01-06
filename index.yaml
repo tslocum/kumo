@@ -29,3 +29,9 @@ indexes:
   ancestor: yes
   properties:
   - name: date
+
+- kind: Post
+  ancestor: yes
+  properties:
+  - name: deleted
+  - name: date

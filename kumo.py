@@ -706,17 +706,21 @@ def getposts(self, thread_op=None,startat=0,special=None):
   threads = []
   posts = []
   
+  add_filter = '' if isAdminView(self) else ' AND deleted = False'
+
   if thread_op:
     thread_entity = Post.get(thread_op)
     if not thread_entity:
       raise
     thread = Post.all().ancestor(thread_entity).order('date')
+    if not isAdminView(self):
+      thread = thread.filter('deleted = ', False)
     firstid = 1
     offset = 0
 
     if special and special != '':
       if special == 'l50':
-        replies_total = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1", thread_entity)
+        replies_total = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1" + add_filter, thread_entity)
         numposts = replies_total.count()
         offset = max(0, (numposts - 50))
         thread = thread.fetch(50, offset)
@@ -756,7 +760,7 @@ def getposts(self, thread_op=None,startat=0,special=None):
     for thread_parent in op_posts:
       fullthread = Thread()
       
-      posts_total = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1", thread_parent)
+      posts_total = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1" + add_filter, thread_parent)
       numposts = posts_total.count()
       fullthread.posts_in_thread = numposts
   
@@ -770,7 +774,7 @@ def getposts(self, thread_op=None,startat=0,special=None):
         fullthread.op_postid = thread_starting_post.postid
         fullthread.op_key = thread_starting_post.key()
         
-      thread = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1 "
+      thread = db.GqlQuery("SELECT * FROM Post WHERE ANCESTOR IS :1" + add_filter + " "
                            "ORDER BY date ASC "
                            "LIMIT " + str(offset) + "," + str(REPLIES_SHOWN_ON_FRONT_PAGE), thread_parent)
 
