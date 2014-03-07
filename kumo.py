@@ -16,10 +16,10 @@ REPLIES_SHOWN_ON_FRONT_PAGE = 5
 SECONDS_BETWEEN_NEW_THREADS = 30
 SECONDS_BETWEEN_REPLIES = 10
 
-MAX_IMAGE_SIZE_BYTES = 1048576
+MAX_IMAGE_SIZE_BYTES = 1024*1024
 MAX_IMAGE_SIZE_DISPLAY = '1 MB'
 MAX_DIMENSION_FOR_OP_IMAGE = 200
-MAX_DIMENSION_FOR_REPLY_IMAGE = 125
+MAX_DIMENSION_FOR_REPLY_IMAGE = 200  #125
 MAX_DIMENSION_FOR_IMAGE_CATALOG = 50
 
 # Number of posts in a thread after which bumping thread disabled. 0 for disabled this option.
@@ -391,6 +391,12 @@ class Sitemap(BaseRequestHandler):
     self.response.headers['Content-Type'] = 'text/xml'
     self.generate('sitemap.xml', template_values)
     
+class Stupid(BaseRequestHandler):
+  def get(self):
+    posts = Post.all().filter('postid = ', 469).get()
+    post.put()
+
+
 class Board(BaseRequestHandler):
   def post(self):
     parent_post = None
@@ -559,7 +565,7 @@ class Board(BaseRequestHandler):
       else:
         post.message = checkRefLinks(post.message, post.postid)
       post.message = checkQuotes(post.message)
-      post.message = checkAllowedHTML(post.message)
+      #post.message = checkAllowedHTML(post.message)
       post.message = post.message.replace("\n", '<br>')
 
       if post.image:
@@ -964,7 +970,7 @@ def tripcode(pw):
         .replace('>', '&gt;')		\
         .replace(',', ',')
     salt = re.sub(r'[^\.-z]', '.', (pw + 'H..')[1:3])
-    salt = salt.translate(string.maketrans(r":;=?@[\]^_`", "ABDFGabcdef"))
+    salt = salt.translate(string.maketrans(r":;=?@[\]^_`", "ABDFGabcdef"))  #]" fix
     
     return crypt(pw, salt)[-10:]
 
@@ -1098,9 +1104,31 @@ def clickableURLs(message):
   list.append(message[i:j])
   return string.join(list, '')
 
+def getPostParentId(postid):
+  post = db.Query(Post).filter('postid =', int(postid)).get()
+  if post:
+    if post.parentid:
+      return post.parentid
+    else:
+      return postid
+  return 0
+
+def refLinksReplace(match):
+  match = match.group()
+  postid = match[len('&gt;&gt;'):]
+  parentid = getPostParentId(postid)
+  if parentid != 0:
+    if postid == parentid:
+      return '<a href="/res/' + str(parentid) + r'.html" onclick="javascript:highlight(' + '\'' + postid + '\'' + r', true);">&gt;&gt;' + postid + '</a>'
+    else:
+      return '<a href="/res/' + str(parentid) + r'.html#' + postid + r'" onclick="javascript:highlight(' + '\'' + postid + '\'' + r', true);">&gt;&gt;' + postid + '</a>'
+  return match
+
+
 def checkRefLinks(message, parentid):
   # TODO: Make this use a callback and allow reference links to posts in other threads
-  message = re.compile(r'&gt;&gt;([0-9]+)').sub('<a href="/res/' + str(parentid) + r'.html#\1" onclick="javascript:highlight(' + '\'' + r'\1' + '\'' + r', true);">&gt;&gt;\1</a>', message)
+  #message = re.compile(r'&gt;&gt;([0-9]+)').sub('<a href="/res/' + str(getPostParentId('\1')) + r'.html#\1" onclick="javascript:highlight(' + '\'' + r'\1' + '\'' + r', true);">&gt;&gt;\1</a>', message)
+  message = re.compile(r'&gt;&gt;([0-9]+)').sub(refLinksReplace, message)
   
   return message
 
@@ -1326,6 +1354,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
                                       ('/panel', Panel),
                                       ('/search', Search),
                                       ('/sitemap.xml', Sitemap),
+                                      #('/abc802deb925098adeee70afc5fc17de4a52', Stupid),
                                       (r'/admin/(.*)/(.*)', AdminPage),
                                       (r'/admin/(.*)', AdminPage),
                                       ('/admin', AdminPage)],
