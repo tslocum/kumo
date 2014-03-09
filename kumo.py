@@ -155,7 +155,12 @@ class Post(search.SearchableModel):
   date_formatted = db.StringProperty() # Preprocessed formatting of the datetime
   bumped = db.DateTimeProperty() # Datetime of when the post was bumped
   deleted = db.BooleanProperty()
-  
+
+"""
+youtube embed video
+<iframe width="200" height="150" class="thumb" src="//www.youtube.com/embed/-PqTx56Vb58" frameborder="0" allowfullscreen=""></iframe>
+"""
+
 class Idx(db.Model):
   name = db.StringProperty(required=True)
   count = db.IntegerProperty(required=True)
@@ -583,8 +588,8 @@ class Board(BaseRequestHandler):
       if post.image:
         image.thumb_data = images.resize(image_data, post.thumb_width, post.thumb_height)
         image.thumb_catalog_data = images.resize(image_data, post.thumb_catalog_width, post.thumb_catalog_height)
-        post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
-        post.thumb_filename = post.image_filename + 's' + post.image_extension
+        #post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
+        #post.thumb_filename = post.image_filename + 's' + post.image_extension
       logging.info(2)
 
       post.put()
@@ -639,13 +644,7 @@ class Delete(BaseRequestHandler):
             
             if imageonly:
               if post.image:
-                image = Image.get(post.image)
-                if image:
-                  image.delete()
-                post.image = None
-                post.image_hex = None
-                post.image_deleted = True
-                post.put()
+                deletePostImage(post)
               else:
                 return self.error('That post does not have an image attached to it.')
             else:
@@ -686,13 +685,7 @@ class AdminPage(BaseRequestHandler):
       elif arg1 == 'delete_image':
         post = Post.get(arg2)
         if post and post.image:
-          image = Image.get(post.image)
-          if image:
-            image.delete()
-          post.image = None
-          post.image_hex = None
-          post.image_deleted = True
-          post.put()
+          deletePostImage(post)
           #threadURL(post.key())
           if post.parentid:
             self.redirect_meta('/res/' + str(post.parentid) + '.html?admin=view#' + str(post.postid))
@@ -792,25 +785,7 @@ class AdminPage(BaseRequestHandler):
               return self.error(image[0], image[1])
         if image is None and self.request.get('deleteimage', None) is not None:
           editing_post.image_deleted = False
-          if editing_post.image:
-            image = Image.get(editing_post.image)
-            image.delete()
-            editing_post.image = None
-            editing_post.image_filename = None
-            editing_post.image_hex = None
-            editing_post.image_mime = None
-            editing_post.image_extension = None
-            editing_post.image_original = None
-            editing_post.image_size = None
-            editing_post.image_size_formatted = None
-            editing_post.image_width = None
-            editing_post.image_height = None
-            editing_post.image_deleted = None
-            editing_post.thumb_filename = None
-            editing_post.thumb_width = None
-            editing_post.thumb_height = None
-            editing_post.thumb_catalog_width = None
-            editing_post.thumb_catalog_height = None
+          deletePostImage(editing_post, set_deleted_flag=False, store_post=False)
 
         editing_post.put()
         if editing_post.parentid:
@@ -824,6 +799,29 @@ class AdminPage(BaseRequestHandler):
 
 ##### ------------------------------------------
 
+def deletePostImage(post, set_deleted_flag=True, store_post=True):
+    if post and post.image:
+      image = Image.get(post.image)
+      if image:
+        image.delete()
+      post.image = None
+      post.image_filename = None
+      post.image_hex = None
+      post.image_mime = None
+      post.image_extension = None
+      post.image_original = None
+      post.image_size = None
+      post.image_size_formatted = None
+      post.image_width = None
+      post.image_height = None
+      post.thumb_filename = None
+      post.thumb_width = None
+      post.thumb_height = None
+      post.thumb_catalog_width = None
+      post.thumb_catalog_height = None
+      post.image_deleted = set_deleted_flag
+      if store_post:
+        post.put()
 
 def setPostImage(post, image_data, imageinfo, image_origin, maxsize):
     """
@@ -872,6 +870,9 @@ def setPostImage(post, image_data, imageinfo, image_origin, maxsize):
             post.thumb_catalog_width, post.thumb_catalog_height = getThumbDimensions(post.image_width, post.image_height, MAX_DIMENSION_FOR_IMAGE_CATALOG)
 
             post.image_hex = sha224(image_data).hexdigest()
+
+            post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
+            post.thumb_filename = post.image_filename + 's' + post.image_extension
           else:
             return ('Error: That image has already been posted <a href="' + threadURL(is_not_duplicate[1]) + '#' + str(is_not_duplicate[2]) + '">here</a>.', False)
         else:
@@ -1293,7 +1294,7 @@ def clickableURLs(message):
 
 def getPostParentId(postid):
   post = db.Query(Post).filter('postid =', int(postid)).get()
-  if post:
+  if post and not post.deleted:
     if post.parentid:
       return post.parentid
     else:
