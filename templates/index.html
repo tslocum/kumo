@@ -16,7 +16,7 @@
               Name
             </td>
             <td>
-              <input type="text" name="name" size="19" maxlength="75" accesskey="n"{% if editing_post %} value="{{ editing_name }}"{% else %}>
+              <input type="text" name="name" size="34" maxlength="75" accesskey="n"{% if editing_post %} value="{{ editing_name }}"{% else %}>
               <input type="checkbox" name="anonymous" id="anonymous" onclick="javascript:anonymouscheckbox(this);"> <label for="anonymous">Display as Anonymous</label{% endif %}>
             </td>
           </tr>
@@ -25,7 +25,7 @@
               Email
             </td>
             <td>
-              <input type="text" name="email" size="19" maxlength="75" accesskey="e"{% if editing_post %} value="{{ editing_email }}"{% else %}{% if administratorview %}>
+              <input type="text" name="email" size="34" maxlength="75" accesskey="e"{% if editing_post %} value="{{ editing_email }}"{% else %}{% if administratorview %}>
               <input type="checkbox" name="administrator" id="administrator"> <label for="administrator">Display as Administrator</label{% endif %}>{% endif %}
             </td>
           </tr>
@@ -43,7 +43,16 @@
               Message
             </td>
             <td>
-              <textarea name="message" cols="48" rows="4" accesskey="m">{{ editing_message }}</textarea>
+              <textarea name="message" cols="52" rows="4" accesskey="m">{{ editing_message }}</textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="postblock">
+              Video URL
+            </td>
+            <td>
+              <input type="text" name="embeddeddata" size="34"{% if editing_post %} value="{{ editing_embedded_data }}"{% if editing_embedded_data%}>
+              <input type="checkbox" name="delembeddeddata" id="delembeddeddata"> <label for="delembeddeddata">delete embedded data</label{% endif %}{% endif %}>
             </td>
           </tr>
           <tr>
@@ -95,7 +104,8 @@
     <br>
     <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
       <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
-    </a>{% else %}{% if post.image_deleted %}<span class="filesize">File: <span><i>&lt;deleted&gt;</i></span></span><br><div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% endif %}{% if post.deleted %}
+    </a>{% else %}{% if post.embedded_data %}
+    <div>{{ post.embedded_data|safe }}</div>{% else %}{% if post.image_deleted %}<span class="filesize">File: <span><i>&lt;deleted&gt;</i></span></span><br><div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% endif %}{% endif %}{% if post.deleted %}
     <span class="omittedposts">No. {{ post.postid }} has been deleted.</span>{% else %}
     <a name="{{ post.postid }}"></a>
     <a name="{{ post.key() }}"></a>
@@ -118,7 +128,8 @@
     <br>
     <a target="_blank" href="/src/{{ post.key() }}/{{ post.image_filename }}">
       <span id="thumb{{ post.postid }}"><img src="/thumb/{{ post.key() }}/{{ post.thumb_filename }}" alt="{{ post.postid }}" class="thumb" width="{{ post.thumb_width }}" height="{{ post.thumb_height }}"></span>
-    </a>{% else %}{% if post.image_deleted %}<div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% endif %}
+    </a>{% else %}{% if post.embedded_data %}
+    <div>{{ post.embedded_data|safe }}</div>{% else %}{% if post.image_deleted %}<div class="nothumb">Image<br>deleted</div>{% endif %}{% endif %}{% endif %}{% endif %}
     <blockquote>
     {% if replythread %}{{ post.message|safe }}{% else %}{% if post.short_message %}{{ post.short_message|safe }}<div class="abbrev">
       <br>Message too long. <a href="/res/{{ thread.op_postid }}.html#{{ post.postid }}">Full text</a>.</div>{% else %}{{ post.message|safe }}{% endif %}{% endif %}

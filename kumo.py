@@ -65,6 +65,8 @@ from hashlib import md5
 from hashlib import sha224
 from StringIO import StringIO
 
+from urlparse import urlparse, parse_qs
+
 
 # Wishful thinking
 gettext.bindtextdomain('kumo')
@@ -141,6 +143,8 @@ class Post(search.SearchableModel):
   thumb_height = db.IntegerProperty() #height of thumbnail
   thumb_catalog_width = db.IntegerProperty() # Width of thumbnail (catalog)
   thumb_catalog_height = db.IntegerProperty() #height of thumbnail (catalog)
+  #embed_video_url = db.StringProperty() # embeded video url
+  embedded_data = db.StringProperty() # embeded data
   ip = db.StringProperty() # IP address used when making the post
   nameblock = db.StringProperty() # Preprocessed HTML block containing the name, tripcode, and email of the post
   anonymous = db.BooleanProperty() # Flag regarding if the poster's Google account should be displayed in the post, however it can also remove anything entered in the Name field
@@ -158,7 +162,7 @@ class Post(search.SearchableModel):
 
 """
 youtube embed video
-<iframe width="200" height="150" class="thumb" src="//www.youtube.com/embed/-PqTx56Vb58" frameborder="0" allowfullscreen=""></iframe>
+<iframe width="300" height="200" class="thumb" src="//www.youtube.com/embed/-PqTx56Vb58" frameborder="0" allowfullscreen=""></iframe>
 """
 
 class Idx(db.Model):
@@ -465,22 +469,29 @@ class Board(BaseRequestHandler):
     else:
       post.anonymous = False
 
-    thefile = self.request.get('file', None)
-    image_data = None
-    if thefile is not None:
-      image_data = db.Blob(str(thefile))
-      imageinfo = getImageInfo(image_data)
-      if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
-        image_origin = cgi.escape(self.request.params.get('file').filename).strip()
+    em_data = getVideoEmbed(self.request.get('embeddeddata'))
+    if em_data is not None:
+      post.embedded_data = '<iframe width="300" height="200" class="thumb" src="%s" frameborder="0" allowfullscreen=""></iframe>'%em_data
+    else:
+      post.embedded_data = None
 
-        if parent_post:
-          maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
-        else:
-          maxsize = MAX_DIMENSION_FOR_OP_IMAGE
+    if post.embedded_data is None:
+      thefile = self.request.get('file', None)
+      image_data = None
+      if thefile is not None:
+        image_data = db.Blob(str(thefile))
+        imageinfo = getImageInfo(image_data)
+        if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
+          image_origin = cgi.escape(self.request.params.get('file').filename).strip()
 
-        image = setPostImage(post, image_data, imageinfo, image_origin, maxsize)
-        if not isinstance(image, Image):
-          return self.error(image[0], image[1])
+          if parent_post:
+            maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
+          else:
+            maxsize = MAX_DIMENSION_FOR_OP_IMAGE
+
+          image = setPostImage(post, image_data, imageinfo, image_origin, maxsize)
+          if not isinstance(image, Image):
+            return self.error(image[0], image[1])
 
       
     """
@@ -548,11 +559,11 @@ class Board(BaseRequestHandler):
       post.author = current_user
       post.name = ''
 
-    if not post.image:
+    if not post.image and not post.embedded_data:
       if not parent_post:
-        return self.error('Error: Please upload an image to start a thread.')
+        return self.error('Error: Please upload an image or add video to start a thread.')
       if post.message == '':
-        return self.error('Error: Please input a message, and/or upload an image.')
+        return self.error('Error: Please input a message, and/or upload an image or add video.')
 
     if not checkNotFlooding(self, (post.parentid is not None)):
       return self.error('Error: Flood detected.')
@@ -584,13 +595,11 @@ class Board(BaseRequestHandler):
       #post.message = checkAllowedHTML(post.message)
       post.message = post.message.replace("\n", '<br>')
 
-      logging.info(1)
       if post.image:
         image.thumb_data = images.resize(image_data, post.thumb_width, post.thumb_height)
         image.thumb_catalog_data = images.resize(image_data, post.thumb_catalog_width, post.thumb_catalog_height)
         #post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
         #post.thumb_filename = post.image_filename + 's' + post.image_extension
-      logging.info(2)
 
       post.put()
       if post.image:
@@ -698,6 +707,7 @@ class AdminPage(BaseRequestHandler):
         post = Post.get(arg2)
         if post:
           logging.info(post.message)
+          em_data = post.embedded_data if post.embedded_data else ''
           tmplt = {
             'administratorview': True,
             'editing_post': True,
@@ -707,6 +717,7 @@ class AdminPage(BaseRequestHandler):
             'editing_subject': post.subject,
             'editing_message': post.message,
             'editing_post_has_image': post.image!=None,
+            'editing_embedded_data': em_data,
             'form_action': '/admin/update',
             'replythread': str(post.key()),
           }
@@ -765,27 +776,37 @@ class AdminPage(BaseRequestHandler):
         editing_post.subject = self.request.get('subject').strip()
         editing_post.message = self.request.get('message')
 
-        thefile = self.request.get('file', None)
+        em_data_del_flag = self.request.get('delembeddeddata', None) is not None
+        if not em_data_del_flag:
+          em_data = getVideoEmbed(self.request.get('embeddeddata'))
+          if em_data is not None:
+            editing_post.embedded_data = '<iframe width="300" height="200" class="thumb" src="%s" frameborder="0" allowfullscreen=""></iframe>'%em_data
+        else:
+          editing_post.embedded_data = None
 
-        image_data = None
-        image = None
-        if thefile is not None:
-          image_data = db.Blob(str(thefile))
-          imageinfo = getImageInfo(image_data)
-          if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
-            image_origin = cgi.escape(self.request.params.get('file').filename).strip()
+        if editing_post.embedded_data is None:
+          image_del_flag = self.request.get('deleteimage', None) is not None
+          if not image_del_flag:
+            thefile = self.request.get('file', None)
+            image_data = None
+            image = None
+            if thefile is not None:
+              image_data = db.Blob(str(thefile))
+              imageinfo = getImageInfo(image_data)
+              if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
+                image_origin = cgi.escape(self.request.params.get('file').filename).strip()
 
-            if editing_post.parentid:
-              maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
-            else:
-              maxsize = MAX_DIMENSION_FOR_OP_IMAGE
+                if editing_post.parentid:
+                  maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
+                else:
+                  maxsize = MAX_DIMENSION_FOR_OP_IMAGE
 
-            image = setPostImage(editing_post, image_data, imageinfo, image_origin, maxsize)
-            if not isinstance(image, Image):
-              return self.error(image[0], image[1])
-        if image is None and self.request.get('deleteimage', None) is not None:
-          editing_post.image_deleted = False
-          deletePostImage(editing_post, set_deleted_flag=False, store_post=False)
+                image = setPostImage(editing_post, image_data, imageinfo, image_origin, maxsize)
+                if not isinstance(image, Image):
+                  return self.error(image[0], image[1])
+          elif image is None:
+            editing_post.image_deleted = False
+            deletePostImage(editing_post, set_deleted_flag=False, store_post=False)
 
         editing_post.put()
         if editing_post.parentid:
@@ -881,6 +902,30 @@ def setPostImage(post, image_data, imageinfo, image_origin, maxsize):
         return ('Error:Only GIF, JPG, and PNG files are supported.', False)
     post.image_deleted = False
     return image
+
+def getVideoEmbed(value):
+    """
+    Examples:
+    - http://youtu.be/SA2iWivDJiE
+    - http://www.youtube.com/watch?v=_oPAwA_Udwc&feature=feedu
+    - http://www.youtube.com/embed/SA2iWivDJiE
+    - http://www.youtube.com/v/SA2iWivDJiE?version=3&amp;hl=en_US
+    """
+    rv = None
+    query = urlparse(value)
+    if query.hostname == 'youtu.be':
+      rv = query.path[1:]
+    elif query.hostname in ('www.youtube.com', 'youtube.com'):
+      if query.path == '/watch':
+        p = parse_qs(query.query)
+        rv = p['v'][0]
+      elif query.path[:7] == '/embed/':
+        rv = query.path.split('/')[2]
+      elif query.path[:3] == '/v/':
+        rv = query.path.split('/')[2]
+    if rv is not None:
+      rv = '//www.youtube.com/embed/'+rv
+    return rv
 
 def getUserPrefs(self):
     current_user = users.get_current_user()
@@ -1047,6 +1092,9 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
 
   if cached:
     cachedat = datetime.now().strftime("%y/%m/%d %H:%M:%S")
+
+  for op in threads:
+    logging.info(op.op_postid)
 
   if reply_to is None:
     ispage = 'true'
