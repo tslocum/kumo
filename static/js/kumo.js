@@ -255,7 +255,7 @@ function set_inputs(id) {
 		with(document.getElementById(id)) {
 			if(!name.value) name.value = getCookie("kumo_name");
 			if(!email.value) email.value = getCookie("kumo_email");
-			if(!password.value) password.value = get_password("kumo_password");
+			if(typeof password !== 'undefined' && !password.value) password.value = get_password("kumo_password");
 		}
 	}
 }

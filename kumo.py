@@ -394,6 +394,7 @@ class Sitemap(BaseRequestHandler):
 class Stupid(BaseRequestHandler):
   def get(self):
     posts = Post.all().filter('postid = ', 469).get()
+    post.message = u'Тут буду выкладывать свое графоманство, для оценки внешнего вида, и вычитки.<br><br><span style="color: #ff0000;">Если вы нашли здесь текст, которого еще нет в треде, для которого он написан, не нужно <i>там</i> давать ссылку сюда, <b>этот текст не готов</b>, но если укажите на ошибки — это ускорит выход текста в том месте, для которого он предназначен.</span>'
     post.put()
 
 
@@ -467,12 +468,28 @@ class Board(BaseRequestHandler):
       post.anonymous = False
 
     thefile = self.request.get('file', None)
-
     image_data = None
     if thefile is not None:
       image_data = db.Blob(str(thefile))
+      imageinfo = getImageInfo(image_data)
+      if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
+        image_origin = cgi.escape(self.request.params.get('file').filename).strip()
+
+        if parent_post:
+          maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
+        else:
+          maxsize = MAX_DIMENSION_FOR_OP_IMAGE
+
+        image = setPostImage(post, image_data, imageinfo, image_origin, maxsize)
+        if not isinstance(image, Image):
+          return self.error(image[0], image[1])
+
       
+    """
     if image_data:
+      if len(image_data) > MAX_IMAGE_SIZE_BYTES:
+        return self.error('Error: That file is too large.')
+
       image = Image(data=image_data)
       try:
         image.put()
@@ -490,8 +507,8 @@ class Board(BaseRequestHandler):
             post.image_size = len(image_data)
             post.image_size_formatted = str(long(post.image_size / 1024)) + 'KB'
 
-            if post.image_size > MAX_IMAGE_SIZE_BYTES:
-              return self.error('Error: That file is too large.')
+            #if post.image_size > MAX_IMAGE_SIZE_BYTES:
+            #  return self.error('Error: That file is too large.')
             
             if post.image_mime == 'image/gif':
               post.image_extension = '.gif'
@@ -524,6 +541,7 @@ class Board(BaseRequestHandler):
       else:
         return self.error('Error:Only GIF, JPG, and PNG files are supported.')
     post.image_deleted = False
+    """
       
     if users.get_current_user():
       current_user = users.get_current_user()
@@ -568,11 +586,13 @@ class Board(BaseRequestHandler):
       #post.message = checkAllowedHTML(post.message)
       post.message = post.message.replace("\n", '<br>')
 
+      logging.info(1)
       if post.image:
         image.thumb_data = images.resize(image_data, post.thumb_width, post.thumb_height)
         image.thumb_catalog_data = images.resize(image_data, post.thumb_catalog_width, post.thumb_catalog_height)
         post.image_filename = str(int(time.mktime(post.date.timetuple()))) + str(post.postid)
         post.thumb_filename = post.image_filename + 's' + post.image_extension
+      logging.info(2)
 
       post.put()
       if post.image:
@@ -670,6 +690,44 @@ class AdminPage(BaseRequestHandler):
           page_text += 'Post removed'
         else:
           page_text += 'Error: Post not found'
+      elif arg1 == 'delete_image':
+        post = Post.get(arg2)
+        if post and post.image:
+          image = Image.get(post.image)
+          if image:
+            image.delete()
+          post.image = None
+          post.image_hex = None
+          post.image_deleted = True
+          post.put()
+          #threadURL(post.key())
+          if post.parentid:
+            self.redirect_meta('/res/' + str(post.parentid) + '.html?admin=view#' + str(post.postid))
+            threadupdated(self, postIDToKey(post.parentid))
+          else:
+            self.redirect_meta('/res/' + str(post.postid) + '.html?admin=view')
+            threadupdated(self, post.key())
+          return
+      elif arg1 == 'edit':
+        post = Post.get(arg2)
+        if post:
+          logging.info(post.message)
+          tmplt = {
+            'administratorview': True,
+            'editing_post': True,
+            'editing_post_id': post.postid,
+            'editing_name': post.nameblock,
+            'editing_email': post.email,
+            'editing_subject': post.subject,
+            'editing_message': post.message,
+            'editing_post_has_image': post.image!=None,
+            'form_action': '/admin/update',
+            'replythread': str(post.key()),
+          }
+          thread = str(postIDToKey(post.parentid)) if post.parentid else str(post.key())
+          threads = getposts(self, thread, 0)
+          writepage(self, threads, thread, ex_template_values=tmplt)
+          return 
       elif arg1 == 'ban':
         post = Post.get(arg2)
         if post:
@@ -698,7 +756,138 @@ class AdminPage(BaseRequestHandler):
     }
     
     self.generate('panel_admin.html', template_values)
-    
+
+  def post(self,arg1=None,arg2=None,arg3=None):
+    if not users.is_current_user_admin():
+      return self.error('You are not authorized to view this page.')
+
+    if arg1:
+      if arg1 == 'update':
+        editing_post = None
+        request_parent = self.request.get('parent')
+        if request_parent:
+          post_ancestor = Post.get(request_parent)
+          if post_ancestor:
+            editing_post = post_ancestor
+          else:
+            return self.error('Error: Unable to locate post.')
+        else:
+          return self.error('Error: Parent don\'t setted.')
+
+        editing_post.nameblock = self.request.get('name').strip()
+        editing_post.email = self.request.get('email').strip()
+        editing_post.subject = self.request.get('subject').strip()
+        editing_post.message = self.request.get('message')
+
+        thefile = self.request.get('file', None)
+
+        image_data = None
+        image = None
+        if thefile is not None:
+          image_data = db.Blob(str(thefile))
+          imageinfo = getImageInfo(image_data)
+          if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
+            image_origin = cgi.escape(self.request.params.get('file').filename).strip()
+
+            if editing_post.parentid:
+              maxsize = MAX_DIMENSION_FOR_REPLY_IMAGE
+            else:
+              maxsize = MAX_DIMENSION_FOR_OP_IMAGE
+
+            image = setPostImage(editing_post, image_data, imageinfo, image_origin, maxsize)
+            if not isinstance(image, Image):
+              return self.error(image[0], image[1])
+        if image is None and self.request.get('deleteimage', None) is not None:
+          editing_post.image_deleted = False
+          if editing_post.image:
+            image = Image.get(editing_post.image)
+            image.delete()
+            editing_post.image = None
+            editing_post.image_filename = None
+            editing_post.image_hex = None
+            editing_post.image_mime = None
+            editing_post.image_extension = None
+            editing_post.image_original = None
+            editing_post.image_size = None
+            editing_post.image_size_formatted = None
+            editing_post.image_width = None
+            editing_post.image_height = None
+            editing_post.image_deleted = None
+            editing_post.thumb_filename = None
+            editing_post.thumb_width = None
+            editing_post.thumb_height = None
+            editing_post.thumb_catalog_width = None
+            editing_post.thumb_catalog_height = None
+
+        editing_post.put()
+        if editing_post.parentid:
+          threadupdated(self, postIDToKey(editing_post.parentid))
+          self.redirect_meta('/res/' + str(editing_post.parentid) + '.html?admin=view#' + str(editing_post.postid))
+        else:
+          threadupdated(self, editing_post.key())
+          self.redirect_meta('/res/' + str(editing_post.postid) + '.html?admin=view')
+
+
+
+##### ------------------------------------------
+
+
+def setPostImage(post, image_data, imageinfo, image_origin, maxsize):
+    """
+    image_data = None
+    if thefile is not None:
+      image_data = db.Blob(str(thefile))
+    """
+      
+    if image_data:
+      if len(image_data) > MAX_IMAGE_SIZE_BYTES:
+        return ('Error: That file is too large.', False)
+
+      image = Image(data=image_data)
+      try:
+        image.put()
+      except:
+        return ('Error: That file is too large.', True)
+      post.image = str(image.key())
+      #imageinfo = getImageInfo(image_data)
+      if imageinfo[0] in ('image/gif', 'image/png', 'image/jpeg'):
+        if imageinfo[1] > 0 and imageinfo[2] > 0:
+          is_not_duplicate = checkImageNotDuplicate(image_data)
+          if is_not_duplicate[0]:
+            post.image_original = image_origin
+            post.image_mime = imageinfo[0]
+            
+            post.image_size = len(image_data)
+            post.image_size_formatted = str(long(post.image_size / 1024)) + 'KB'
+            
+            if post.image_mime == 'image/gif':
+              post.image_extension = '.gif'
+            else:
+              if post.image_mime == 'image/png':
+                post.image_extension = '.png'
+              else:
+                if post.image_mime == 'image/jpeg':
+                  post.image_extension = '.jpg'
+          
+            post.image_width = imageinfo[1]
+            post.image_height = imageinfo[2]
+
+            # Calculate the dimensions for the thumbnail for /thumb/
+            post.thumb_width, post.thumb_height = getThumbDimensions(post.image_width, post.image_height, maxsize)
+
+            # Calculate the dimensions for the thumbnail for /cat/
+            post.thumb_catalog_width, post.thumb_catalog_height = getThumbDimensions(post.image_width, post.image_height, MAX_DIMENSION_FOR_IMAGE_CATALOG)
+
+            post.image_hex = sha224(image_data).hexdigest()
+          else:
+            return ('Error: That image has already been posted <a href="' + threadURL(is_not_duplicate[1]) + '#' + str(is_not_duplicate[2]) + '">here</a>.', False)
+        else:
+          return ('Error: Unable to read image dimensions.', False)
+      else:
+        return ('Error:Only GIF, JPG, and PNG files are supported.', False)
+    post.image_deleted = False
+    return image
+
 def getUserPrefs(self):
     current_user = users.get_current_user()
     user_prefs = UserPrefs().all().filter('user = ', current_user)
@@ -818,7 +1007,7 @@ def getposts(self, thread_op=None,startat=0,special=None):
   
   return threads
 
-def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenum=None):
+def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenum=None, ex_template_values={}):
   global time_start, total_threads
   
   execution_time = (datetime.now() - time_start)
@@ -865,6 +1054,10 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
   if cached:
     cachedat = datetime.now().strftime("%y/%m/%d %H:%M:%S")
 
+  if reply_to is None:
+    ispage = 'true'
+  else:
+    ispage = 'false'
   template_values = {
     'threads': threads,
     'replythread': reply_to,
@@ -872,10 +1065,11 @@ def writepage(self, threads, reply_to=None, doreturn=False, cached=False, pagenu
     'execution_time_seconds': execution_time.seconds,
     'execution_time_microseconds': (execution_time.microseconds / 1000),
     'cached': cachedat,
-    'is_page': reply_to is None,
+    'is_page': ispage,
     }
   if not reply_to is None:
     template_values['op_postid'] = threads[0].op_postid
+  template_values.update(ex_template_values)
   
   return self.generate('index.html', template_values, doreturn)
 
@@ -970,7 +1164,7 @@ def tripcode(pw):
         .replace('>', '&gt;')		\
         .replace(',', ',')
     salt = re.sub(r'[^\.-z]', '.', (pw + 'H..')[1:3])
-    salt = salt.translate(string.maketrans(r":;=?@[\]^_`", "ABDFGabcdef"))  #]" fix
+    salt = salt.translate(string.maketrans(r":;=?@[\]^_`", "ABDFGabcdef"))  ####]" fix colors on sublime2
     
     return crypt(pw, salt)[-10:]
 
