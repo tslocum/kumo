@@ -390,13 +390,6 @@ class Sitemap(BaseRequestHandler):
 
     self.response.headers['Content-Type'] = 'text/xml'
     self.generate('sitemap.xml', template_values)
-    
-class Stupid(BaseRequestHandler):
-  def get(self):
-    posts = Post.all().filter('postid = ', 469).get()
-    post.message = u'Тут буду выкладывать свое графоманство, для оценки внешнего вида, и вычитки.<br><br><span style="color: #ff0000;">Если вы нашли здесь текст, которого еще нет в треде, для которого он написан, не нужно <i>там</i> давать ссылку сюда, <b>этот текст не готов</b>, но если укажите на ошибки — это ускорит выход текста в том месте, для которого он предназначен.</span>'
-    post.put()
-
 
 class Board(BaseRequestHandler):
   def post(self):
@@ -1548,7 +1541,6 @@ app = webapp2.WSGIApplication([('/', MainPage),
                                       ('/panel', Panel),
                                       ('/search', Search),
                                       ('/sitemap.xml', Sitemap),
-                                      #('/abc802deb925098adeee70afc5fc17de4a52', Stupid),
                                       (r'/admin/(.*)/(.*)', AdminPage),
                                       (r'/admin/(.*)', AdminPage),
                                       ('/admin', AdminPage)],
