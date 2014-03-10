@@ -926,7 +926,7 @@ def getVideoEmbed(value):
       if query.hostname == 'vimeo.com':
         rv = query.path[1:]
       if rv is not None:
-        rv = '<iframe src="//player.vimeo.com/video/%s" width="300" height="169" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>'%rv
+        rv = '<iframe src="//player.vimeo.com/video/%s" class="thumb" width="300" height="169" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>'%rv
     return rv
 
 def getUserPrefs(self):
