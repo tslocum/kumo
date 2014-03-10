@@ -469,11 +469,7 @@ class Board(BaseRequestHandler):
     else:
       post.anonymous = False
 
-    em_data = getVideoEmbed(self.request.get('embeddeddata'))
-    if em_data is not None:
-      post.embedded_data = '<iframe width="300" height="200" class="thumb" src="%s" frameborder="0" allowfullscreen=""></iframe>'%em_data
-    else:
-      post.embedded_data = None
+    post.embedded_data = getVideoEmbed(self.request.get('embeddeddata'))
 
     if post.embedded_data is None:
       thefile = self.request.get('file', None)
@@ -778,9 +774,9 @@ class AdminPage(BaseRequestHandler):
 
         em_data_del_flag = self.request.get('delembeddeddata', None) is not None
         if not em_data_del_flag:
-          em_data = getVideoEmbed(self.request.get('embeddeddata'))
-          if em_data is not None:
-            editing_post.embedded_data = '<iframe width="300" height="200" class="thumb" src="%s" frameborder="0" allowfullscreen=""></iframe>'%em_data
+          em_data = self.request.get('embeddeddata')
+          if em_data is not None and len(em_data):
+            editing_post.embedded_data = em_data
         else:
           editing_post.embedded_data = None
 
@@ -924,7 +920,13 @@ def getVideoEmbed(value):
       elif query.path[:3] == '/v/':
         rv = query.path.split('/')[2]
     if rv is not None:
-      rv = '//www.youtube.com/embed/'+rv
+      #rv = '//www.youtube.com/embed/'+rv
+      rv = '<iframe width="300" height="200" class="thumb" src="//www.youtube.com/embed/%s" frameborder="0" allowfullscreen=""></iframe>'%rv
+    else:
+      if query.hostname == 'vimeo.com':
+        rv = query.path[1:]
+      if rv is not None:
+        rv = '<iframe src="//player.vimeo.com/video/%s" width="300" height="169" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>'%rv
     return rv
 
 def getUserPrefs(self):
