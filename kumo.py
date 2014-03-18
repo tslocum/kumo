@@ -428,6 +428,11 @@ class Board(BaseRequestHandler):
        post = Post()
        post.parentid = None
        post.posts = 1
+
+    post.postid = Counter('Post_ID').inc()
+    if post.postid == 0:
+      Counter('Post_ID').create(0)
+      return self.error('Database initialized.  Please re-submit your post.', True)
     
     post.name = cgi.escape(self.request.get('name')).strip()
     name_match = re.compile(r'(.*)#(.*)').match(post.name)
@@ -579,10 +584,6 @@ class Board(BaseRequestHandler):
     post.date_formatted = post.date.strftime("%y/%m/%d(%a)%H:%M:%S")
     
     try:
-      post.postid = Counter('Post_ID').inc()
-      if post.postid == 0:
-        Counter('Post_ID').create(0)
-        return self.error('Database initialized.  Please re-submit your post.', True)
       if parent_post:
         post.message = checkRefLinks(post.message, parent_post.postid)
       else:
