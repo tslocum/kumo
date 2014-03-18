@@ -454,6 +454,11 @@ class Board(BaseRequestHandler):
         short_msg.append(paragraphs[i])
       if i < len(paragraphs):
         post.short_message = clickableURLs(message_marking('<br>\n'.join(short_msg)))
+        if parent_post:
+          post.short_message = checkRefLinks(post.short_message, parent_post.postid)
+        else:
+          post.short_message = checkRefLinks(post.short_message, post.postid)
+        post.short_message = checkQuotes(post.short_message)
 
     post.email = cgi.escape(self.request.get('email')).strip()
     post.subject = cgi.escape(self.request.get('subject')).strip()
